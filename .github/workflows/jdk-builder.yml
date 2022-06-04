@@ -1,0 +1,107 @@
+name: JDK builder
+
+on: 
+  schedule:
+    - cron: "30 23 1 * *"
+  workflow_dispatch: 
+
+jobs:
+
+  jdk4ql:
+      strategy:
+        fail-fast: false
+        matrix:
+          REPO: [openjdk/jdk^u]
+          VERSION: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+          TAG: [latest]
+          include:
+            - VERSION: 8
+              CONFIGURE_OPTS: "--with-extra-cflags=-Wno-error --with-extra-cxxflags=-Wno-error --with-freetype-include=/usr/include/freetype2 --with-freetype-lib=/usr/lib/x86_64-linux-gnu --with-boot-jdk=$JAVA_HOME_NOW"
+            - VERSION: 9
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW"
+            - VERSION: 10
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW"
+            - VERSION: 11
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW"
+            - VERSION: 12
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive"
+            - VERSION: 13
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive"
+            - VERSION: 14
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive"
+            - VERSION: 15
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive --disable-jvm-feature-cds"
+            - VERSION: 16
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive --disable-jvm-feature-cds"
+            - VERSION: 17
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive --disable-jvm-feature-cds"
+            - VERSION: 18
+              CONFIGURE_OPTS: "--disable-javac-server --disable-warnings-as-errors --disable-generate-classlist --with-boot-jdk=$JAVA_HOME_MINUS --with-build-jdk=$JAVA_HOME_NOW --disable-cds-archive --disable-jvm-feature-cds"
+          
+      runs-on: ubuntu-20.04
+      
+      steps:
+      - name: ENV setup
+        run: |-
+          export `cat <(echo "REPOSITORY=$(echo ${{matrix.REPO}} | sed -e 's@\^@${{matrix.VERSION}}@g')" | tee -a $GITHUB_ENV)`
+          cat <(echo "MINUS=$((${{matrix.VERSION}}-1))" | tee -a $GITHUB_ENV)
+          
+          if [[ "${{matrix.TAG}}" == *"^"* ]]; then
+            TAG=$(echo ${{matrix.TAG}} | sed -e 's@\^@${{matrix.VERSION}}@g')
+          elif [[ "${{matrix.TAG}}" == "latest" ]]; then
+            TAG=$(curl https://api.github.com/repos/$REPOSITORY/tags | jq -r '.[].name' | grep ${{matrix.VERSION}} | head -n 1)
+          else
+            TAG=${{matrix.TAG}}
+          fi
+          
+          cat <(echo "TAG=$TAG" | tee -a $GITHUB_ENV)
+          
+      - name: Checkout JDK repo
+        uses: actions/checkout@v3
+        with:
+          repository: ${{env.REPOSITORY}}
+          ref: ${{env.TAG}}
+          
+      - name: "Set up JDK ${{env.MINUS}}"
+        uses: AdoptOpenJDK/install-jdk@v1
+        if: ${{ matrix.VERSION > 8 }}
+        with:
+          version: ${{env.MINUS}}
+          architecture: x64
+          targets: "JAVA_HOME_MINUS"
+          
+      - name: "Set up JDK ${{matrix.VERSION}}"
+        uses: AdoptOpenJDK/install-jdk@v1
+        with:
+          version: ${{matrix.VERSION}}
+          architecture: x64
+          targets: "JAVA_HOME_NOW"
+          
+      - name: Install apt dependencies
+        run: |-
+          DEBIAN_FRONTEND=noninteractive sudo apt update -y
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfreetype6-dev gawk libfontconfig1-dev cpio autoconf
+          
+      - name: Run ./configure
+        run: |-
+          bash ./configure ${{matrix.CONFIGURE_OPTS}}
+          
+      - name: "CodeQL binary: Download & Add to $PATH"
+        run: |-
+          wget https://github.com/github/codeql-cli-binaries/releases/latest/download/codeql-linux64.zip -O codeql.zip
+          unzip -q codeql.zip && rm codeql.zip && mv codeql codeql-bin
+          echo "`pwd`/codeql-bin" >> $GITHUB_PATH
+
+      - name: "CodeQL database: Create"
+        run: |-
+          codeql database create --overwrite --threads 0 --cleanup-upgrade-backups --mode brutal -v --language java -c "make images -j" ${{env.TAG}}-DB
+          
+      - name: "CodeQL database: Bundle"
+        run: |-
+          codeql database bundle --cleanup-upgrade-backups --mode brutal -v -o ${{env.TAG}}-DB.zip ${{env.TAG}}-DB
+          
+      - name: "CodeQL database: Upload as artifact"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{env.TAG}}-DB
+          path: ${{env.TAG}}-DB.zip
