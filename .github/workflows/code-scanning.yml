@@ -1,0 +1,77 @@
+name: JDK builder
+
+on: 
+  workflow_call:
+    inputs:
+      REPOSITORY:
+        required: true
+        type: string
+      VERSION:
+        required: true
+        type: number
+      TAG:
+        required: true
+        type: string
+      CONFIGURE_OPTS:
+        required: true
+        type: string
+      
+
+jobs:
+  jdk4ql: 
+      runs-on: ubuntu-20.04
+      
+      steps:
+      - name: ENV setup
+        run: |-
+          cat <(echo "MINUS=$((${{ inputs.VERSION }}-1))" | tee -a $GITHUB_ENV)
+          
+          if [[ "${{ inputs.TAG }}" == "latest" ]]; then
+            TAG=$(curl https://api.github.com/repos/${{ inputs.REPOSITORY }}/tags | jq -r '.[].name' | grep ${{ inputs.VERSION }} | head -n 1)
+          else
+            TAG=${{ inputs.TAG }}
+          fi
+          
+          cat <(echo "TAG=$TAG" | tee -a $GITHUB_ENV)
+          
+      - name: Checkout JDK repo
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.REPOSITORY }}
+          ref: ${{ env.TAG }}
+          
+      - name: "Set up JDK ${{ env.MINUS }}"
+        uses: AdoptOpenJDK/install-jdk@v1
+        if: ${{ inputs.VERSION > 8 }}
+        with:
+          version: ${{ env.MINUS }}
+          architecture: x64
+          targets: "JAVA_HOME_MINUS"
+          
+      - name: "Set up JDK ${{ matrix.VERSION }}"
+        uses: AdoptOpenJDK/install-jdk@v1
+        with:
+          version: ${{ inputs.VERSION }}
+          architecture: x64
+          targets: "JAVA_HOME_NOW"
+          
+      - name: Install apt dependencies
+        run: |-
+          DEBIAN_FRONTEND=noninteractive sudo apt update -y
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfreetype6-dev gawk libfontconfig1-dev cpio autoconf
+          
+      - name: Run ./configure
+        run: |-
+          bash ./configure ${{ inputs.CONFIGURE_OPTS }}
+          make images -j
+          
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: 'java'
+          
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          upload: false
+          skip-queries: true
