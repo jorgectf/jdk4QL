@@ -1,4 +1,4 @@
-name: JDK builder
+name: JDK code-scanning builder
 
 on: 
   workflow_call:
