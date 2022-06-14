@@ -48,7 +48,7 @@ jobs:
           architecture: x64
           targets: "JAVA_HOME_MINUS"
           
-      - name: "Set up JDK ${{ matrix.VERSION }}"
+      - name: "Set up JDK ${{ inputs.VERSION }}"
         uses: AdoptOpenJDK/install-jdk@v1
         with:
           version: ${{ inputs.VERSION }}
