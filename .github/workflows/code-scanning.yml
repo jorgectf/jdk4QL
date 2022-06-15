@@ -59,16 +59,17 @@ jobs:
         run: |-
           DEBIAN_FRONTEND=noninteractive sudo apt update -y
           DEBIAN_FRONTEND=noninteractive sudo apt install -y libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfreetype6-dev gawk libfontconfig1-dev cpio autoconf
+      
+      - name: Run ./configure
+        run: bash ./configure ${{ inputs.CONFIGURE_OPTS }}
           
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
           languages: 'java'
           
-      - name: Run ./configure
-        run: |-
-          bash ./configure ${{ inputs.CONFIGURE_OPTS }}
-          make images -j
+      - name: Build
+        run: make images -j
           
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
