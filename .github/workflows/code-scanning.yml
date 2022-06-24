@@ -12,6 +12,7 @@ on:
       TAG:
         required: true
         type: string
+        default: 'latest'
       CONFIGURE_OPTS:
         required: true
         type: string
