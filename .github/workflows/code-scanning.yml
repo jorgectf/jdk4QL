@@ -27,7 +27,7 @@ jobs:
         run: |-
           cat <(echo "MINUS=$((${{ inputs.VERSION }}-1))" | tee -a $GITHUB_ENV)
           
-          if [[ "${{ inputs.TAG }}" == "latest" ]]; then
+          if [[ "${{ inputs.TAG }}" == "latest" || "${{ inputs.TAG }}" == "" ]]; then
             TAG=$(curl https://api.github.com/repos/${{ inputs.REPOSITORY }}/tags | jq -r '.[].name' | grep ${{ inputs.VERSION }} | head -n 1)
           else
             TAG=${{ inputs.TAG }}
