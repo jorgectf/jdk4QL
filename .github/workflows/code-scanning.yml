@@ -70,7 +70,8 @@ jobs:
           languages: 'java'
           
       - name: Build
-        run: make images -j
+        run: |-
+          make images -j $(nproc)
           
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
