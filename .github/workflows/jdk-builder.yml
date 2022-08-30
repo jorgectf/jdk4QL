@@ -94,7 +94,7 @@ jobs:
 
       - name: "CodeQL database: Create"
         run: |-
-          codeql database create --overwrite --threads 0 --cleanup-upgrade-backups --mode brutal -v --language java -c "make images -j" ${{env.TAG}}-DB
+          codeql database create --overwrite --threads 0 --cleanup-upgrade-backups --mode brutal -v --language java -c "make images -j $(nproc)" ${{env.TAG}}-DB
           
       - name: "CodeQL database: Bundle"
         run: |-
