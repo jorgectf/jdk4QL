@@ -71,7 +71,7 @@ jobs:
           
       - name: Build
         run: |-
-          make images -j $(nproc)
+          make images JOBS=$(nproc)
           
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
