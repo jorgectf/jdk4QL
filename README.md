@@ -7,8 +7,6 @@ Visit [the Actions page](https://github.com/jorgectf/jdk4QL/actions), click on t
 --- 
 
 https://github.com/jorgectf/jdk8u/actions/workflows/build.yml  
-https://github.com/jorgectf/jdk9u/actions/workflows/build.yml  
-https://github.com/jorgectf/jdk10u/actions/workflows/build.yml  
 https://github.com/jorgectf/jdk11u/actions/workflows/build.yml  
 https://github.com/jorgectf/jdk12u/actions/workflows/build.yml  
 https://github.com/jorgectf/jdk13u/actions/workflows/build.yml  
